@@ -31,7 +31,7 @@ This version includes:
 ## Requirements
 
 - Xcode 16 or later
-- iOS 16 or later
+- iOS 16 or later — runs on both iPhone and iPad
 
 ## Getting started
 
@@ -42,22 +42,6 @@ This version includes:
 To run on a physical device, open the project settings, set your **Team** under
 *Signing & Capabilities*, and change the bundle identifier
 (`com.example.DotsAndBoxes`) to something unique.
-
-## Deploying to the App Store
-
-The project is a standard iOS app target, ready for distribution:
-
-1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs)
-   ($99/year).
-2. In Xcode, set your Team, then choose *Product → Archive* with **Any iOS
-   Device** selected.
-3. Use the Organizer to upload the archive to
-   [App Store Connect](https://appstoreconnect.apple.com), fill in the store
-   metadata and screenshots, and submit for review.
-
-One note: the game saves its state with `UserDefaults`, which is on Apple's
-"required reason" API list — include a privacy manifest
-(`PrivacyInfo.xcprivacy`) when submitting, declaring on-device data storage.
 
 ## Project structure
 
