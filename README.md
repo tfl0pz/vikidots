@@ -22,6 +22,12 @@ This version includes:
 - **iPhone and iPad** — adaptive layout with rotation and multitasking support
 - **Dark and light mode** — follows the system appearance
 
+## Screenshots
+
+<img src="assets/IMG_5119.png" height="420" alt="Start screen with grid size options">
+<img src="assets/IMG_5120.png" height="420" alt="Empty Medium board, Blue's turn">
+<img src="assets/IMG_5121.png" height="420" alt="Mid-game with claimed boxes, score 1–1">
+
 ## Requirements
 
 - Xcode 16 or later
