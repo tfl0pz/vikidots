@@ -19,6 +19,11 @@ This version includes:
   from 6 to 20 dots per side
 - **Auto-save** — leaving the screen or quitting the app never loses a game;
   the start screen shows a "Resume" badge with the current score
+- **Undo** — take back moves one at a time, even after restarting the app
+- **Sound feedback** — a synthesized pop for each line, a chime when you claim
+  a box, and a short fanfare when the game ends (no audio files needed)
+- **Last-move highlight** — the newest line blinks, so it's always clear what
+  just happened
 - **iPhone and iPad** — adaptive layout with rotation and multitasking support
 - **Dark and light mode** — follows the system appearance
 
@@ -54,8 +59,9 @@ DotsAndBoxes/
 ├── DotsAndBoxesApp.swift   App entry point
 ├── MenuView.swift          Grid-size picker
 ├── GameView.swift          Scoreboard, turn indicator, game-over panel
-├── BoardView.swift         Board rendering and tap handling
-└── Game.swift              Game rules and save/load persistence
+├── BoardView.swift         Board rendering, tap handling, last-line blink
+├── Game.swift              Game rules, undo history, and save/load persistence
+└── PopSound.swift          Synthesized sound effects (pop, chime, fanfare)
 ```
 
 The game logic lives in `Game.swift` and is deliberately kept separate from
