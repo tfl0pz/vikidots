@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BoardView: View {
     @ObservedObject var game: Game
+    @State private var highlightStart = Date()
 
     var body: some View {
         GeometryReader { proxy in
@@ -10,6 +11,7 @@ struct BoardView: View {
                 boxesLayer(layout)
                 availableSlots(layout)
                 drawnLines(layout)
+                blinkingLastLine(layout)
                 dots(layout)
             }
             .animation(.spring(response: 0.25), value: game.drawnLines.count)
@@ -17,13 +19,22 @@ struct BoardView: View {
             .contentShape(Rectangle())
             .gesture(
                 SpatialTapGesture().onEnded { value in
-                    if let line = layout.lineNearest(to: value.location) {
-                        game.draw(line)
+                    guard let line = layout.lineNearest(to: value.location) else { return }
+                    let outcome = game.draw(line)
+                    guard outcome != .ignored else { return }
+                    if game.isOver {
+                        PopSound.playTada()
+                    } else if outcome == .boxCompleted {
+                        PopSound.playChime()
+                    } else {
+                        PopSound.play()
                     }
                 }
             )
         }
         .aspectRatio(1, contentMode: .fit)
+        .onAppear { highlightStart = Date() }
+        .onChange(of: game.lastLine) { _ in highlightStart = Date() }
     }
 
     // MARK: - Layers
@@ -56,12 +67,34 @@ struct BoardView: View {
     }
 
     private func drawnLines(_ layout: BoardLayout) -> some View {
-        ForEach(Array(game.drawnLines), id: \.self) { line in
+        ForEach(Array(game.drawnLines).filter { $0 != game.lastLine }, id: \.self) { line in
             Segment(layout.ends(of: line))
                 .stroke(game.lineOwners[line]?.color ?? .secondary,
                         style: StrokeStyle(lineWidth: layout.step * 0.09, lineCap: .round))
                 .transition(.opacity)
         }
+    }
+
+    /// The newest line blinks in its player's color so it's easy to spot,
+    /// whoever moved last. Opacity is a pure function of the clock, so any
+    /// line that becomes "last" starts blinking immediately.
+    @ViewBuilder
+    private func blinkingLastLine(_ layout: BoardLayout) -> some View {
+        if let line = game.lastLine, let owner = game.lineOwners[line] {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                Segment(layout.ends(of: line))
+                    .stroke(owner.color, style: StrokeStyle(lineWidth: layout.step * 0.09, lineCap: .round))
+                    .opacity(blinkOpacity(at: context.date))
+            }
+        }
+    }
+
+    /// 1 = solid, 0 = hidden; one on/off blink every 1.2s.
+    private func blinkOpacity(at date: Date) -> Double {
+			  let period = 0.8
+        let t = date.timeIntervalSince(highlightStart).truncatingRemainder(dividingBy: period)
+        let triangle = 1 - abs(2 * t / period - 1)
+        return min(1, max(0, (triangle - 0.25) / 0.25))
     }
 
     private func dots(_ layout: BoardLayout) -> some View {

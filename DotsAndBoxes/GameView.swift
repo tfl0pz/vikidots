@@ -4,6 +4,7 @@ struct GameView: View {
     @StateObject private var game: Game
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var confirmReset = false
 
     init(dotCount: Int) {
         // Resume the saved game for this grid size, if there is one.
@@ -31,14 +32,30 @@ struct GameView: View {
         .navigationTitle("Dots & Boxes")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
-                    game.reset()
+                    game.undo()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                }
+                .accessibilityLabel("Undo last move")
+                .disabled(!game.canUndo)
+
+                Button {
+                    confirmReset = true
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
                 }
                 .accessibilityLabel("Start over")
             }
+        }
+        .confirmationDialog("Start over?", isPresented: $confirmReset) {
+            Button("Start Over", role: .destructive) {
+                game.reset()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The current game and its undo history will be discarded.")
         }
     }
 

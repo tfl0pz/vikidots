@@ -29,6 +29,20 @@ private struct SavedLine: Codable {
     let player: Player
 }
 
+/// One recorded move: the line drawn, who drew it, and any boxes it completed.
+private struct Move: Codable {
+    let line: Line
+    let player: Player
+    let completedBoxes: [Int]
+}
+
+/// What happened when the player tried to draw a line.
+enum MoveOutcome {
+    case ignored        // the tap did nothing (spot taken, or the game is over)
+    case lineDrawn      // a line was placed
+    case boxCompleted   // a line was placed and claimed at least one box
+}
+
 @MainActor
 final class Game: ObservableObject {
     /// Number of dots on each side of the board (e.g. 5 means a 5x5 grid of dots).
@@ -39,6 +53,9 @@ final class Game: ObservableObject {
     @Published private(set) var boxOwners: [Player?]
     @Published private(set) var currentPlayer: Player = .blue
 
+    /// Every move made so far, so turns can be undone.
+    private var history = [Move]()
+
     init(dotCount: Int) {
         self.dotCount = dotCount
         boxOwners = Array(repeating: nil, count: (dotCount - 1) * (dotCount - 1))
@@ -47,6 +64,10 @@ final class Game: ObservableObject {
     var boxesPerRow: Int { dotCount - 1 }
     var totalLines: Int { 2 * dotCount * (dotCount - 1) }
     var isOver: Bool { drawnLines.count == totalLines }
+    var canUndo: Bool { !history.isEmpty }
+
+    /// The most recently drawn line, highlighted on the board.
+    var lastLine: Line? { history.last?.line }
 
     var scores: [Player: Int] {
         var result: [Player: Int] = [.blue: 0, .red: 0]
@@ -66,25 +87,43 @@ final class Game: ObservableObject {
         boxOwners[row * boxesPerRow + col]
     }
 
-    func draw(_ line: Line) {
-        guard !isOver, !drawnLines.contains(line) else { return }
+    @discardableResult
+    func draw(_ line: Line) -> MoveOutcome {
+        guard !isOver, !drawnLines.contains(line) else { return .ignored }
 
+        let player = currentPlayer
         drawnLines.insert(line)
-        lineOwners[line] = currentPlayer
+        lineOwners[line] = player
 
-        var completedBoxes = 0
+        var completedBoxIndexes = [Int]()
         for (boxRow, boxCol) in boxesNextTo(line) {
             let index = boxRow * boxesPerRow + boxCol
             if boxOwners[index] == nil && boxIsComplete(row: boxRow, col: boxCol) {
-                boxOwners[index] = currentPlayer
-                completedBoxes += 1
+                boxOwners[index] = player
+                completedBoxIndexes.append(index)
             }
         }
 
         // Closing a box scores a point and earns the same player another turn.
-        if completedBoxes == 0 {
-            currentPlayer = (currentPlayer == .blue) ? .red : .blue
+        if completedBoxIndexes.isEmpty {
+            currentPlayer = (player == .blue) ? .red : .blue
         }
+
+        history.append(Move(line: line, player: player, completedBoxes: completedBoxIndexes))
+        save()
+        return completedBoxIndexes.isEmpty ? .lineDrawn : .boxCompleted
+    }
+
+    /// Takes back the most recent move, including any box it completed.
+    func undo() {
+        guard let move = history.popLast() else { return }
+
+        drawnLines.remove(move.line)
+        lineOwners[move.line] = nil
+        for index in move.completedBoxes {
+            boxOwners[index] = nil
+        }
+        currentPlayer = move.player
 
         save()
     }
@@ -94,6 +133,7 @@ final class Game: ObservableObject {
         lineOwners.removeAll()
         boxOwners = Array(repeating: nil, count: boxOwners.count)
         currentPlayer = .blue
+        history.removeAll()
         UserDefaults.standard.removeObject(forKey: saveKey)
     }
 
@@ -106,7 +146,8 @@ final class Game: ObservableObject {
         let snapshot = SavedGame(
             savedLines: lineOwners.map { SavedLine(line: $0.key, player: $0.value) },
             boxOwners: boxOwners,
-            currentPlayer: currentPlayer
+            currentPlayer: currentPlayer,
+            history: history
         )
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         UserDefaults.standard.set(data, forKey: saveKey)
@@ -124,6 +165,7 @@ final class Game: ObservableObject {
         }
         game.boxOwners = snapshot.boxOwners
         game.currentPlayer = snapshot.currentPlayer
+        game.history = snapshot.history
         return game
     }
 
@@ -155,6 +197,7 @@ private struct SavedGame: Codable {
     var savedLines: [SavedLine]
     var boxOwners: [Player?]
     var currentPlayer: Player
+    var history: [Move]
 }
 
 extension Color {
